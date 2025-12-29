@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="api-base-url" content="%VITE_API_BASE_URL%">
+  <title>HubSpot CRM Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-wrapper">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="header-content">
+        <div class="header-left">
+          <div class="logo">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <div>
+            <h1>HubSpot CRM Dashboard</h1>
+            <p class="subtitle">Manage your contacts, companies, and deals</p>
+          </div>
+        </div>
+        <div class="header-right">
+          <div id="accountInfo" class="account-info" style="display: none;">
+            <i class="fas fa-check-circle"></i>
+            <span id="accountName">HubSpot Account</span>
+            <button id="logoutBtn" class="btn-logout" title="Logout">
+              <i class="fas fa-sign-out-alt"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Status Bar -->
+    <div id="status" class="status-bar">
+      <i class="fas fa-spinner fa-spin"></i>
+      <span>Loading data...</span>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card" id="contactsCard">
+        <div class="stat-icon contacts-icon">
+          <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">Contacts</div>
+          <div class="stat-value" id="contactsCount">-</div>
+        </div>
+      </div>
+
+      <div class="stat-card" id="companiesCard">
+        <div class="stat-icon companies-icon">
+          <i class="fas fa-building"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">Companies</div>
+          <div class="stat-value" id="companiesCount">-</div>
+        </div>
+      </div>
+
+      <div class="stat-card" id="dealsCard">
+        <div class="stat-icon deals-icon">
+          <i class="fas fa-handshake"></i>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">Deals</div>
+          <div class="stat-value" id="dealsCount">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-section="contacts">
+        <i class="fas fa-users"></i>
+        <span>Contacts</span>
+      </button>
+      <button class="nav-tab" data-section="companies">
+        <i class="fas fa-building"></i>
+        <span>Companies</span>
+      </button>
+      <button class="nav-tab" data-section="deals">
+        <i class="fas fa-handshake"></i>
+        <span>Deals</span>
+      </button>
+    </div>
+
+    <!-- Main Content -->
+    <div class="dashboard-content">
+      <!-- Contacts Section -->
+      <section class="dashboard-section active" id="contactsSection">
+        <div class="section-header">
+          <h2>
+            <i class="fas fa-users"></i>
+            Contacts
+          </h2>
+          <button class="btn-create" data-type="contact">
+            <i class="fas fa-plus"></i>
+            Create
+          </button>
+        </div>
+        <div class="table-container">
+          <table id="contactsTable">
+            <thead>
+              <tr>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Email</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="4" class="empty-message">
+                  <i class="fas fa-inbox"></i>
+                  <span>No contacts loaded yet.</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination Controls for Contacts -->
+        <div class="pagination" id="contactsPagination" style="display: none;">
+          <button class="btn-pagination" id="contactsPrevBtn" disabled>
+            <i class="fas fa-chevron-left"></i> Previous
+          </button>
+          <span class="pagination-info" id="contactsPageInfo">Page 1</span>
+          <button class="btn-pagination" id="contactsNextBtn">
+            Next <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- Companies Section -->
+      <section class="dashboard-section" id="companiesSection">
+        <div class="section-header">
+          <h2>
+            <i class="fas fa-building"></i>
+            Companies
+          </h2>
+          <button class="btn-create" data-type="company">
+            <i class="fas fa-plus"></i>
+            Create
+          </button>
+        </div>
+        <div class="table-container">
+          <table id="companiesTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Domain</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="3" class="empty-message">
+                  <i class="fas fa-inbox"></i>
+                  <span>No companies loaded yet.</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination Controls for Companies -->
+        <div class="pagination" id="companiesPagination" style="display: none;">
+          <button class="btn-pagination" id="companiesPrevBtn" disabled>
+            <i class="fas fa-chevron-left"></i> Previous
+          </button>
+          <span class="pagination-info" id="companiesPageInfo">Page 1</span>
+          <button class="btn-pagination" id="companiesNextBtn">
+            Next <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- Deals Section -->
+      <section class="dashboard-section" id="dealsSection">
+        <div class="section-header">
+          <h2>
+            <i class="fas fa-handshake"></i>
+            Deals
+          </h2>
+          <button class="btn-create" data-type="deal">
+            <i class="fas fa-plus"></i>
+            Create
+          </button>
+        </div>
+        <div class="table-container">
+          <table id="dealsTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Amount</th>
+                <th>Stage</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="4" class="empty-message">
+                  <i class="fas fa-inbox"></i>
+                  <span>No deals loaded yet.</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination Controls for Deals -->
+        <div class="pagination" id="dealsPagination" style="display: none;">
+          <button class="btn-pagination" id="dealsPrevBtn" disabled>
+            <i class="fas fa-chevron-left"></i> Previous
+          </button>
+          <span class="pagination-info" id="dealsPageInfo">Page 1</span>
+          <button class="btn-pagination" id="dealsNextBtn">
+            Next <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Modal Overlay -->
+  <div id="modalOverlay" class="modal-overlay">
+    <!-- Contact Modal -->
+    <div id="contactModal" class="modal">
+      <div class="modal-header">
+        <h2>
+          <i class="fas fa-user-plus"></i>
+          Create New Contact
+        </h2>
+        <button class="modal-close" data-modal="contactModal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="contactForm" class="modal-form">
+        <div class="form-group">
+          <label for="contactFirstName">First Name *</label>
+          <input type="text" id="contactFirstName" name="firstname" required>
+        </div>
+        <div class="form-group">
+          <label for="contactLastName">Last Name *</label>
+          <input type="text" id="contactLastName" name="lastname" required>
+        </div>
+        <div class="form-group">
+          <label for="contactEmail">Email *</label>
+          <input type="email" id="contactEmail" name="email" required>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" data-modal="contactModal">Cancel</button>
+          <button type="submit" class="btn-submit">
+            <i class="fas fa-check"></i>
+            Create Contact
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Edit Contact Modal -->
+    <div id="editContactModal" class="modal">
+      <div class="modal-header">
+        <h2>
+          <i class="fas fa-user-edit"></i>
+          Edit Contact
+        </h2>
+        <button class="modal-close" data-modal="editContactModal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="editContactForm" class="modal-form">
+        <input type="hidden" id="editContactId" name="contactId">
+        <div class="form-group">
+          <label for="editContactFirstName">First Name *</label>
+          <input type="text" id="editContactFirstName" name="firstname" required>
+        </div>
+        <div class="form-group">
+          <label for="editContactLastName">Last Name *</label>
+          <input type="text" id="editContactLastName" name="lastname" required>
+        </div>
+        <div class="form-group">
+          <label for="editContactEmail">Email *</label>
+          <input type="email" id="editContactEmail" name="email" required>
+        </div>
+        <div class="form-group">
+          <label for="editContactCompany">Associate with Company</label>
+          <div class="searchable-select">
+            <input type="text" id="editContactCompanySearch" placeholder="Search company by name..." autocomplete="off">
+            <select id="editContactCompany" name="company" style="display: none;">
+              <option value="">Select a company...</option>
+            </select>
+            <div class="searchable-dropdown" id="editContactCompanyDropdown"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="editContactDeal">Associate with Deal</label>
+          <div class="searchable-select">
+            <input type="text" id="editContactDealSearch" placeholder="Search deal by name..." autocomplete="off">
+            <select id="editContactDeal" name="deal" style="display: none;">
+              <option value="">Select a deal...</option>
+            </select>
+            <div class="searchable-dropdown" id="editContactDealDropdown"></div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" data-modal="editContactModal">Cancel</button>
+          <button type="submit" class="btn-submit">
+            <i class="fas fa-save"></i>
+            Update Contact
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Company Modal -->
+    <div id="companyModal" class="modal">
+      <div class="modal-header">
+        <h2>
+          <i class="fas fa-building"></i>
+          Create New Company
+        </h2>
+        <button class="modal-close" data-modal="companyModal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="companyForm" class="modal-form">
+        <div class="form-group">
+          <label for="companyName">Company Name *</label>
+          <input type="text" id="companyName" name="name" required>
+        </div>
+        <div class="form-group">
+          <label for="companyDomain">Domain</label>
+          <input type="text" id="companyDomain" name="domain" placeholder="example.com">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" data-modal="companyModal">Cancel</button>
+          <button type="submit" class="btn-submit">
+            <i class="fas fa-check"></i>
+            Create Company
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Edit Company Modal -->
+    <div id="editCompanyModal" class="modal">
+      <div class="modal-header">
+        <h2>
+          <i class="fas fa-building"></i>
+          Edit Company
+        </h2>
+        <button class="modal-close" data-modal="editCompanyModal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="editCompanyForm" class="modal-form">
+        <input type="hidden" id="editCompanyId" name="companyId">
+        <div class="form-group">
+          <label for="editCompanyName">Company Name *</label>
+          <input type="text" id="editCompanyName" name="name" required>
+        </div>
+        <div class="form-group">
+          <label for="editCompanyDomain">Domain</label>
+          <input type="text" id="editCompanyDomain" name="domain" placeholder="example.com">
+        </div>
+        <div class="form-group">
+          <label for="editCompanyPhone">Phone</label>
+          <input type="tel" id="editCompanyPhone" name="phone" placeholder="+1 234 567 8900">
+        </div>
+        <div class="form-group">
+          <label for="editCompanyWebsite">Website</label>
+          <input type="url" id="editCompanyWebsite" name="website" placeholder="https://www.example.com">
+        </div>
+        <div class="form-group">
+          <label for="editCompanyIndustry">Industry</label>
+          <input type="text" id="editCompanyIndustry" name="industry" placeholder="e.g., Technology, Healthcare">
+        </div>
+        <div class="form-group">
+          <label for="editCompanyCity">City</label>
+          <input type="text" id="editCompanyCity" name="city" placeholder="City">
+        </div>
+        <div class="form-group">
+          <label for="editCompanyState">State/Province</label>
+          <input type="text" id="editCompanyState" name="state" placeholder="State or Province">
+        </div>
+        <div class="form-group">
+          <label for="editCompanyCountry">Country</label>
+          <input type="text" id="editCompanyCountry" name="country" placeholder="Country">
+        </div>
+        <div class="form-group">
+          <label for="editCompanyZip">Zip/Postal Code</label>
+          <input type="text" id="editCompanyZip" name="zip" placeholder="Zip or Postal Code">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" data-modal="editCompanyModal">Cancel</button>
+          <button type="submit" class="btn-submit">
+            <i class="fas fa-save"></i>
+            Update Company
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Deal Modal -->
+    <div id="dealModal" class="modal">
+      <div class="modal-header">
+        <h2>
+          <i class="fas fa-handshake"></i>
+          Create New Deal
+        </h2>
+        <button class="modal-close" data-modal="dealModal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="dealForm" class="modal-form">
+        <div class="form-group">
+          <label for="dealName">Deal Name *</label>
+          <input type="text" id="dealName" name="dealname" required>
+        </div>
+        <div class="form-group">
+          <label for="dealAmount">Amount ($) *</label>
+          <input type="number" id="dealAmount" name="amount" step="0.01" min="0" required>
+        </div>
+        <div class="form-group">
+          <label for="dealStage">Deal Stage</label>
+          <select id="dealStage" name="dealstage">
+            <option value="">Select a stage...</option>
+            <option value="appointmentscheduled">Appointment Scheduled</option>
+            <option value="qualifiedtobuy">Qualified To Buy</option>
+            <option value="presentationscheduled">Presentation Scheduled</option>
+            <option value="decisionmakerboughtin">Decision Maker Bought-In</option>
+            <option value="contractsent">Contract Sent</option>
+            <option value="closedwon">Close Won</option>
+            <option value="closedlost">Close Lost</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" data-modal="dealModal">Cancel</button>
+          <button type="submit" class="btn-submit">
+            <i class="fas fa-check"></i>
+            Create Deal
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Edit Deal Modal -->
+    <div id="editDealModal" class="modal">
+      <div class="modal-header">
+        <h2>
+          <i class="fas fa-handshake"></i>
+          Edit Deal
+        </h2>
+        <button class="modal-close" data-modal="editDealModal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="editDealForm" class="modal-form">
+        <input type="hidden" id="editDealId" name="dealId">
+        <div class="form-group">
+          <label for="editDealName">Deal Name *</label>
+          <input type="text" id="editDealName" name="dealname" required>
+        </div>
+        <div class="form-group">
+          <label for="editDealAmount">Amount ($) *</label>
+          <input type="number" id="editDealAmount" name="amount" step="0.01" min="0" required>
+        </div>
+        <div class="form-group">
+          <label for="editDealStage">Deal Stage</label>
+          <select id="editDealStage" name="dealstage">
+            <option value="">Select a stage...</option>
+            <option value="appointmentscheduled">Appointment Scheduled</option>
+            <option value="qualifiedtobuy">Qualified To Buy</option>
+            <option value="presentationscheduled">Presentation Scheduled</option>
+            <option value="decisionmakerboughtin">Decision Maker Bought-In</option>
+            <option value="contractsent">Contract Sent</option>
+            <option value="closedwon">Close Won</option>
+            <option value="closedlost">Close Lost</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" data-modal="editDealModal">Cancel</button>
+          <button type="submit" class="btn-submit">
+            <i class="fas fa-save"></i>
+            Update Deal
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

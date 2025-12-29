@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="api-base-url" content="%VITE_API_BASE_URL%">
+  <title>Login - HubSpot CRM Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .login-card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 48px;
+      max-width: 450px;
+      width: 100%;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+
+    .login-logo {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 36px;
+      margin: 0 auto 24px;
+    }
+
+    .login-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .login-subtitle {
+      color: var(--text-secondary);
+      font-size: 16px;
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    .login-features {
+      text-align: left;
+      margin: 32px 0;
+      padding: 24px;
+      background: var(--background);
+      border-radius: 12px;
+    }
+
+    .login-features h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .feature-item i {
+      color: var(--primary-color);
+      font-size: 16px;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 18px 32px;
+      font-size: 18px;
+      font-weight: 700;
+      margin-top: 8px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(255, 122, 89, 0.4);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-login::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+
+    .btn-login:hover::before {
+      width: 300px;
+      height: 300px;
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 122, 89, 0.5);
+    }
+
+    .btn-login:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 10px rgba(255, 122, 89, 0.4);
+    }
+
+    .btn-login i {
+      position: relative;
+      z-index: 1;
+      font-size: 20px;
+      margin-right: 8px;
+    }
+
+    .btn-login span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-error {
+      background: #f8d7da;
+      color: var(--error-color);
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .login-error.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-logo">
+        <i class="fas fa-chart-line"></i>
+      </div>
+      <h1 class="login-title">HubSpot CRM Dashboard</h1>
+      <p class="login-subtitle">
+        Connect your HubSpot account to manage contacts, companies, and deals all in one place.
+      </p>
+
+      <div id="loginError" class="login-error"></div>
+
+      <div class="login-features">
+        <h3>What you can do:</h3>
+        <div class="feature-item">
+          <i class="fas fa-users"></i>
+          <span>Manage your contacts</span>
+        </div>
+        <div class="feature-item">
+          <i class="fas fa-building"></i>
+          <span>Track companies</span>
+        </div>
+        <div class="feature-item">
+          <i class="fas fa-handshake"></i>
+          <span>Monitor deals pipeline</span>
+        </div>
+        <div class="feature-item">
+          <i class="fas fa-chart-bar"></i>
+          <span>View analytics and insights</span>
+        </div>
+      </div>
+
+      <button id="connectBtn" class="btn-primary btn-login">
+        <i class="fas fa-plug"></i>
+        <span>Connect HubSpot Account</span>
+      </button>
+
+      <p style="margin-top: 24px; color: var(--text-secondary); font-size: 13px;">
+        <i class="fas fa-lock"></i> Your data is secure and encrypted
+      </p>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    // Check if already logged in
+    async function checkAuthStatus() {
+      try {
+        const apiUrl = (window.API_CONFIG && window.API_CONFIG.getApiUrl) 
+          ? window.API_CONFIG.getApiUrl('/api/account')
+          : '/api/account';
+        const response = await fetch(apiUrl, {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          // Already logged in, redirect to dashboard
+          window.location.href = '/';
+        }
+      } catch (error) {
+        // Not logged in, stay on login page
+        console.log('Not authenticated');
+      }
+    }
+
+    // Connect button click handler
+    document.getElementById('connectBtn').addEventListener('click', () => {
+      // Get auth URL from config or use relative path
+      const authUrl = (window.API_CONFIG && window.API_CONFIG.getApiUrl) 
+        ? window.API_CONFIG.getApiUrl('/auth')
+        : '/auth';
+      window.location.href = authUrl;
+    });
+
+    // Check for error in URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    if (error) {
+      const errorDiv = document.getElementById('loginError');
+      errorDiv.textContent = decodeURIComponent(error);
+      errorDiv.classList.add('show');
+    }
+
+    // Check auth status on page load
+    checkAuthStatus();
+  </script>
+</body>
+</html>
+

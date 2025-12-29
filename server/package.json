@@ -1,0 +1,32 @@
+{
+  "name": "hubspot-crm-dashboard",
+  "version": "1.0.0",
+  "description": "HubSpot CRM Dashboard - Manage contacts, companies, and deals",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "production": "NODE_ENV=production node server.js"
+  },
+  "keywords": [
+    "hubspot",
+    "crm",
+    "dashboard",
+    "contacts",
+    "companies",
+    "deals"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1"
+  }
+}

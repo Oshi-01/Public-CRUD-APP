@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: hubspot-crm-dashboard-backend
+    env: node
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: HUBSPOT_CLIENT_ID
+        sync: false
+      - key: HUBSPOT_CLIENT_SECRET
+        sync: false
+      - key: HUBSPOT_REDIRECT_URI
+        sync: false
+      - key: HUBSPOT_SCOPES
+        value: contacts companies deals
+      - key: HUBSPOT_OPTIONAL_SCOPES
+        sync: false
+    healthCheckPath: /health
+
