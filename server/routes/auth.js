@@ -14,18 +14,33 @@ function normalizeRedirectUri(uri, req) {
   if (!uri) return null;
   
   let normalized = uri.trim();
+  const host = req.get('host') || 'localhost:3000';
+  const protocol = req.protocol || (req.secure ? 'https' : 'http');
   
   // If URI doesn't start with http:// or https://, construct it from request
   if (!normalized.match(/^https?:\/\//)) {
-    const protocol = req.protocol || (req.secure ? 'https' : 'http');
-    const host = req.get('host') || 'localhost:3000';
-    
     // If URI starts with /, prepend protocol and host
     if (normalized.startsWith('/')) {
       normalized = `${protocol}://${host}${normalized}`;
     } else {
       // Otherwise, assume it's a full URL missing protocol
       normalized = `${protocol}://${normalized}`;
+    }
+  }
+  
+  // In production, if redirect URI contains localhost but request is from production domain,
+  // replace it with the actual production domain
+  if (normalized.includes('localhost') && !host.includes('localhost')) {
+    try {
+      // Extract the path from the redirect URI
+      const urlObj = new URL(normalized);
+      const path = urlObj.pathname;
+      // Construct new URI with production host
+      normalized = `${protocol}://${host}${path}`;
+    } catch (e) {
+      // If URL parsing fails, assume it's a path and construct from scratch
+      const path = normalized.includes('/') ? normalized.substring(normalized.indexOf('/')) : '/oauth-callback';
+      normalized = `${protocol}://${host}${path}`;
     }
   }
   
@@ -57,7 +72,11 @@ router.get('/auth', (req, res) => {
 
   // Generate state for CSRF protection
   const state = crypto.randomBytes(16).toString('hex');
-  stateStore.set(state, { timestamp: Date.now() });
+  // Store the redirect URI in state so callback can use the same one
+  stateStore.set(state, { 
+    timestamp: Date.now(),
+    redirectUri: redirectUri 
+  });
 
   // Clean up old states (older than 10 minutes)
   const TEN_MINUTES = 10 * 60 * 1000;
@@ -90,6 +109,10 @@ router.get('/oauth-callback', async (req, res) => {
   if (!state || !stateStore.has(state)) {
     return res.status(400).send('<h1>Invalid State</h1><p>CSRF validation failed.</p>');
   }
+  
+  // Get redirect URI from state (stored during /auth request)
+  const stateData = stateStore.get(state);
+  let redirectUri = stateData?.redirectUri;
   stateStore.delete(state);
 
   if (error) {
@@ -104,7 +127,11 @@ router.get('/oauth-callback', async (req, res) => {
 
   const clientId = process.env.HUBSPOT_CLIENT_ID?.trim();
   const clientSecret = process.env.HUBSPOT_CLIENT_SECRET?.trim();
-  let redirectUri = process.env.HUBSPOT_REDIRECT_URI?.trim();
+  
+  // If redirect URI wasn't stored in state, fall back to env var
+  if (!redirectUri) {
+    redirectUri = process.env.HUBSPOT_REDIRECT_URI?.trim();
+  }
 
   if (!clientId || !clientSecret || !redirectUri) {
     return res.status(500).send('<h1>Configuration Error</h1><p>Missing environment variables.</p>');
