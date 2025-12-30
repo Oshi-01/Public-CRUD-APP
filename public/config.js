@@ -6,7 +6,12 @@
 (function() {
   // Get API base URL from meta tag
   const metaTag = document.querySelector('meta[name="api-base-url"]');
-  const apiBaseUrl = metaTag ? metaTag.getAttribute('content') : '';
+  let apiBaseUrl = metaTag ? metaTag.getAttribute('content') : '';
+  
+  // If the placeholder wasn't replaced (build script not run), treat as empty for local dev
+  if (apiBaseUrl && (apiBaseUrl.includes('%') || apiBaseUrl.includes('API_BASE_URL') || apiBaseUrl.includes('VITE_API_BASE_URL'))) {
+    apiBaseUrl = '';
+  }
   
   // Export to window for use in app.js
   window.API_CONFIG = {
