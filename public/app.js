@@ -1,3 +1,11 @@
+// Helper function to escape HTML
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 // Helper function to get API URL (uses config if available)
 function getApiUrl(path) {
   if (window.API_CONFIG && window.API_CONFIG.getApiUrl) {
@@ -69,14 +77,27 @@ function updateStatus(message, type = 'info') {
 
 // Update stat cards
 function updateStats(contactsCount, companiesCount, dealsCount) {
-  document.getElementById('contactsCount').textContent = contactsCount.toLocaleString();
-  document.getElementById('companiesCount').textContent = companiesCount.toLocaleString();
-  document.getElementById('dealsCount').textContent = dealsCount.toLocaleString();
+  // Ensure counts are numbers
+  const contacts = Number(contactsCount) || 0;
+  const companies = Number(companiesCount) || 0;
+  const deals = Number(dealsCount) || 0;
+  
+  const contactsEl = document.getElementById('contactsCount');
+  const companiesEl = document.getElementById('companiesCount');
+  const dealsEl = document.getElementById('dealsCount');
+  
+  if (contactsEl) contactsEl.textContent = contacts.toLocaleString();
+  if (companiesEl) companiesEl.textContent = companies.toLocaleString();
+  if (dealsEl) dealsEl.textContent = deals.toLocaleString();
   
   // Add card classes for styling
-  document.getElementById('contactsCard').classList.add('contacts-card');
-  document.getElementById('companiesCard').classList.add('companies-card');
-  document.getElementById('dealsCard').classList.add('deals-card');
+  const contactsCard = document.getElementById('contactsCard');
+  const companiesCard = document.getElementById('companiesCard');
+  const dealsCard = document.getElementById('dealsCard');
+  
+  if (contactsCard) contactsCard.classList.add('contacts-card');
+  if (companiesCard) companiesCard.classList.add('companies-card');
+  if (dealsCard) dealsCard.classList.add('deals-card');
 }
 
 // Render contacts table
@@ -94,12 +115,25 @@ function renderContacts(data) {
         <td>${props.lastname || '-'}</td>
         <td><a href="mailto:${props.email || ''}" style="color: var(--primary-color); text-decoration: none;">${props.email || '-'}</a></td>
         <td>
+          <button class="btn-preview" data-type="contact" data-id="${contactId}" title="Preview Contact">
+            <i class="fas fa-eye"></i>
+          </button>
           <button class="btn-edit" data-contact-id="${contactId}" data-contact-data='${JSON.stringify({id: contactId, ...props})}' title="Edit Contact">
             <i class="fas fa-edit"></i>
           </button>
         </td>
       `;
       contactsTable.appendChild(row);
+    });
+    
+    // Add event listeners to preview buttons
+    document.querySelectorAll('.btn-preview[data-type="contact"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const contactId = btn.getAttribute('data-id');
+        openPreview('contact', contactId);
+      });
     });
     
     // Add event listeners to edit buttons
@@ -152,12 +186,25 @@ function renderCompanies(data) {
         <td>${props.name || '-'}</td>
         <td>${domain}</td>
         <td>
+          <button class="btn-preview" data-type="company" data-id="${companyId}" title="Preview Company">
+            <i class="fas fa-eye"></i>
+          </button>
           <button class="btn-edit" data-company-id="${companyId}" data-company-data='${JSON.stringify({id: companyId, ...props})}' title="Edit Company">
             <i class="fas fa-edit"></i>
           </button>
         </td>
       `;
       companiesTable.appendChild(row);
+    });
+    
+    // Add event listeners to preview buttons
+    document.querySelectorAll('.btn-preview[data-type="company"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const companyId = btn.getAttribute('data-id');
+        openPreview('company', companyId);
+      });
     });
     
     // Add event listeners to edit buttons
@@ -216,12 +263,25 @@ function renderDeals(data) {
         <td style="font-weight: 600; color: var(--success-color);">${formattedAmount}</td>
         <td><span style="background: #e0f2fe; color: var(--companies-color); padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 500;">${stage}</span></td>
         <td>
+          <button class="btn-preview" data-type="deal" data-id="${dealId}" title="Preview Deal">
+            <i class="fas fa-eye"></i>
+          </button>
           <button class="btn-edit" data-deal-id="${dealId}" data-deal-data='${JSON.stringify({id: dealId, ...props})}' title="Edit Deal">
             <i class="fas fa-edit"></i>
           </button>
         </td>
       `;
       dealsTable.appendChild(row);
+    });
+    
+    // Add event listeners to preview buttons
+    document.querySelectorAll('.btn-preview[data-type="deal"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const dealId = btn.getAttribute('data-id');
+        openPreview('deal', dealId);
+      });
     });
     
     // Add event listeners to edit buttons
@@ -324,15 +384,7 @@ async function loadContacts(after = null) {
     updatePaginationControls('contacts', data.paging, data.hasMore);
   }
   
-  if (!after) {
-    // Update stat card only on initial load
-    const currentCount = document.getElementById('contactsCount').textContent;
-    if (currentCount === '-' || currentCount === '0') {
-      updateStats(contactsCount, 
-        parseInt(document.getElementById('companiesCount').textContent) || 0,
-        parseInt(document.getElementById('dealsCount').textContent) || 0);
-    }
-  }
+  // Stats are now updated separately via loadTotalCounts()
   
   return data;
 }
@@ -351,15 +403,7 @@ async function loadCompanies(after = null) {
     updatePaginationControls('companies', data.paging, data.hasMore);
   }
   
-  if (!after) {
-    // Update stat card only on initial load
-    const currentCount = document.getElementById('companiesCount').textContent;
-    if (currentCount === '-' || currentCount === '0') {
-      updateStats(parseInt(document.getElementById('contactsCount').textContent) || 0,
-        companiesCount,
-        parseInt(document.getElementById('dealsCount').textContent) || 0);
-    }
-  }
+  // Stats are now updated separately via loadTotalCounts()
   
   return data;
 }
@@ -378,15 +422,7 @@ async function loadDeals(after = null) {
     updatePaginationControls('deals', data.paging, data.hasMore);
   }
   
-  if (!after) {
-    // Update stat card only on initial load
-    const currentCount = document.getElementById('dealsCount').textContent;
-    if (currentCount === '-' || currentCount === '0') {
-      updateStats(parseInt(document.getElementById('contactsCount').textContent) || 0,
-        parseInt(document.getElementById('companiesCount').textContent) || 0,
-        dealsCount);
-    }
-  }
+  // Stats are now updated separately via loadTotalCounts()
   
   return data;
 }
@@ -417,6 +453,68 @@ function updatePaginationControls(type, paging, hasMore) {
   pageInfo.textContent = `Page ${paginationState[type].page}`;
 }
 
+// Load total counts for stats cards
+async function loadTotalCounts() {
+  try {
+    console.log('=== Loading total counts ===');
+    
+    const contactsPromise = fetchJSON('/api/contacts/count')
+      .then(res => {
+        console.log('✅ Contacts count response:', res);
+        return res;
+      })
+      .catch(err => {
+        console.error('❌ Contacts count error:', err);
+        return { total: 0 };
+      });
+    
+    const companiesPromise = fetchJSON('/api/companies/count')
+      .then(res => {
+        console.log('✅ Companies count response:', res);
+        return res;
+      })
+      .catch(err => {
+        console.error('❌ Companies count error:', err);
+        return { total: 0 };
+      });
+    
+    const dealsPromise = fetchJSON('/api/deals/count')
+      .then(res => {
+        console.log('✅ Deals count response:', res);
+        return res;
+      })
+      .catch(err => {
+        console.error('❌ Deals count error:', err);
+        return { total: 0 };
+      });
+
+    const [contactsCountRes, companiesCountRes, dealsCountRes] = await Promise.all([
+      contactsPromise,
+      companiesPromise,
+      dealsPromise,
+    ]);
+
+    console.log('Raw responses:', {
+      contacts: contactsCountRes,
+      companies: companiesCountRes,
+      deals: dealsCountRes
+    });
+
+    // Extract total from response - backend returns { total: number }
+    const counts = {
+      contacts: Number(contactsCountRes?.total || 0),
+      companies: Number(companiesCountRes?.total || 0),
+      deals: Number(dealsCountRes?.total || 0),
+    };
+
+    console.log('=== Final parsed counts ===', counts);
+    return counts;
+  } catch (error) {
+    console.error('Error loading total counts:', error);
+    return { contacts: 0, companies: 0, deals: 0 };
+  }
+}
+
 // Load and render dashboard data
 async function loadDashboard() {
   updateStatus('Loading data...', 'info');
@@ -427,19 +525,25 @@ async function loadDashboard() {
     paginationState.companies = { cursor: null, hasMore: false, page: 1 };
     paginationState.deals = { cursor: null, hasMore: false, page: 1 };
     
-    // Fetch all data in parallel
-    const [contactsData, companiesData, dealsData] = await Promise.all([
+    // Fetch all data and counts in parallel
+    const [contactsData, companiesData, dealsData, counts] = await Promise.all([
       loadContacts(),
       loadCompanies(),
       loadDeals(),
+      loadTotalCounts(),
     ]);
 
-    // Update stat cards with initial counts
-    updateStats(
-      contactsData.results?.length || 0,
-      companiesData.results?.length || 0,
-      dealsData.results?.length || 0
-    );
+    // Update stat cards with total counts from HubSpot
+    if (counts) {
+      updateStats(
+        counts.contacts || 0,
+        counts.companies || 0,
+        counts.deals || 0
+      );
+    } else {
+      console.warn('Counts object is undefined or null');
+      updateStats(0, 0, 0);
+    }
 
     // Update status
     updateStatus('Dashboard loaded successfully!', 'success');
@@ -960,20 +1064,52 @@ async function handleEditContactSubmit(e) {
     await putJSON(`/api/contacts/${contactId}`, data);
     
     // Associate with company if selected
-    if (companyId) {
+    if (companyId && companyId.trim() !== '') {
       try {
-        await postJSON(`/api/contacts/${contactId}/associations/company/${companyId}`, {});
+        const apiUrl = getApiUrl(`/api/contacts/${contactId}/associations/company/${companyId}`);
+        console.log('Creating company association:', { contactId, companyId, apiUrl });
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        const responseData = await response.json().catch(() => ({}));
+        console.log('Association response:', { status: response.status, data: responseData });
+        if (!response.ok) {
+          throw new Error(responseData.error || responseData.message || 'Failed to associate company');
+        }
+        console.log('Company association created successfully');
       } catch (assocError) {
         console.error('Error associating company:', assocError);
+        updateStatus(`Warning: Could not associate company: ${assocError.message}`, 'warning');
+        // Don't fail the whole update if association fails
       }
     }
     
     // Associate with deal if selected
-    if (dealId) {
+    if (dealId && dealId.trim() !== '') {
       try {
-        await postJSON(`/api/contacts/${contactId}/associations/deal/${dealId}`, {});
+        const apiUrl = getApiUrl(`/api/contacts/${contactId}/associations/deal/${dealId}`);
+        console.log('Creating deal association:', { contactId, dealId, apiUrl });
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        const responseData = await response.json().catch(() => ({}));
+        console.log('Association response:', { status: response.status, data: responseData });
+        if (!response.ok) {
+          throw new Error(responseData.error || responseData.message || 'Failed to associate deal');
+        }
+        console.log('Deal association created successfully');
       } catch (assocError) {
         console.error('Error associating deal:', assocError);
+        updateStatus(`Warning: Could not associate deal: ${assocError.message}`, 'warning');
+        // Don't fail the whole update if association fails
       }
     }
 
@@ -1214,3 +1350,563 @@ async function initDashboard() {
 
 // Initialize dashboard
 initDashboard();
+
+// ========== PREVIEW FUNCTIONALITY ==========
+
+// Open preview modal and load data
+async function openPreview(type, id) {
+  const modal = document.getElementById('previewModal');
+  const titleEl = document.getElementById('previewTitle');
+  const contentEl = document.getElementById('previewContent');
+  
+  // Set title based on type
+  const titles = {
+    contact: 'Contact Preview',
+    company: 'Company Preview',
+    deal: 'Deal Preview'
+  };
+  titleEl.textContent = titles[type] || 'Record Preview';
+  
+  // Show loading state
+  contentEl.innerHTML = `
+    <div style="text-align: center; padding: 40px;">
+      <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: var(--text-secondary);"></i>
+      <p style="margin-top: 16px; color: var(--text-secondary);">Loading preview...</p>
+    </div>
+  `;
+  
+  // Open modal
+  openModal('previewModal');
+  
+  try {
+    // Fetch full record details and associations (only for contacts)
+    const [data, associations] = await Promise.all([
+      fetchJSON(`/api/${type}s/${id}`),
+      type === 'contact' ? fetchJSON(`/api/${type}s/${id}/associations`).catch(() => ({ companies: [], deals: [] })) : Promise.resolve({ companies: [], deals: [] })
+    ]);
+    renderPreview(type, data, associations, id);
+  } catch (error) {
+    console.error('Error loading preview:', error);
+    contentEl.innerHTML = `
+      <div style="text-align: center; padding: 40px;">
+        <i class="fas fa-exclamation-circle" style="font-size: 32px; color: var(--error-color);"></i>
+        <p style="margin-top: 16px; color: var(--error-color);">Failed to load preview</p>
+        <p style="margin-top: 8px; color: var(--text-secondary); font-size: 14px;">${error.message}</p>
+      </div>
+    `;
+  }
+}
+
+// Render preview content
+function renderPreview(type, data, associations = { companies: [], deals: [] }, recordId = null) {
+  const contentEl = document.getElementById('previewContent');
+  const props = data.properties || {};
+  const id = recordId || data.id;
+  
+  let html = '<div class="preview-container">';
+  
+  if (type === 'contact') {
+    html += `
+      <div class="preview-section">
+        <h3><i class="fas fa-user"></i> Contact Information</h3>
+        <div class="preview-grid">
+          <div class="preview-item">
+            <label>First Name</label>
+            <div>${props.firstname || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Last Name</label>
+            <div>${props.lastname || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Email</label>
+            <div><a href="mailto:${props.email || ''}">${props.email || '-'}</a></div>
+          </div>
+          <div class="preview-item">
+            <label>Phone</label>
+            <div>${props.phone || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Mobile Phone</label>
+            <div>${props.mobilephone || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Company</label>
+            <div>${props.company || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Website</label>
+            <div>${props.website ? `<a href="${props.website}" target="_blank">${props.website}</a>` : '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Lifecycle Stage</label>
+            <div>${props.lifecyclestage || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Lead Status</label>
+            <div>${props.lead_status || props.hs_lead_status || '-'}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (type === 'company') {
+    html += `
+      <div class="preview-section">
+        <h3><i class="fas fa-building"></i> Company Information</h3>
+        <div class="preview-grid">
+          <div class="preview-item">
+            <label>Company Name</label>
+            <div>${props.name || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Domain</label>
+            <div>${props.domain ? `<a href="https://${props.domain}" target="_blank">${props.domain}</a>` : '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Phone</label>
+            <div>${props.phone || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Website</label>
+            <div>${props.website ? `<a href="${props.website}" target="_blank">${props.website}</a>` : '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Industry</label>
+            <div>${props.industry || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Number of Employees</label>
+            <div>${props.numberofemployees ? props.numberofemployees.toLocaleString() : '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Annual Revenue</label>
+            <div>${props.annualrevenue ? `$${parseFloat(props.annualrevenue).toLocaleString()}` : '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>City</label>
+            <div>${props.city || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>State/Province</label>
+            <div>${props.state || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Country</label>
+            <div>${props.country || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Zip/Postal Code</label>
+            <div>${props.zip || '-'}</div>
+          </div>
+          ${props.description ? `
+          <div class="preview-item full-width">
+            <label>Description</label>
+            <div>${props.description}</div>
+          </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  } else if (type === 'deal') {
+    const amount = props.amount ? parseFloat(props.amount) : 0;
+    const formattedAmount = amount > 0 ? `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
+    
+    html += `
+      <div class="preview-section">
+        <h3><i class="fas fa-handshake"></i> Deal Information</h3>
+        <div class="preview-grid">
+          <div class="preview-item">
+            <label>Deal Name</label>
+            <div>${props.dealname || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Amount</label>
+            <div style="font-weight: 600; color: var(--success-color); font-size: 18px;">${formattedAmount}</div>
+          </div>
+          <div class="preview-item">
+            <label>Deal Stage</label>
+            <div><span style="background: #e0f2fe; color: var(--companies-color); padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 500;">${props.dealstage || '-'}</span></div>
+          </div>
+          <div class="preview-item">
+            <label>Pipeline</label>
+            <div>${props.pipeline || '-'}</div>
+          </div>
+          <div class="preview-item">
+            <label>Close Date</label>
+            <div>${props.closedate ? new Date(props.closedate).toLocaleDateString() : '-'}</div>
+          </div>
+          ${props.description ? `
+          <div class="preview-item full-width">
+            <label>Description</label>
+            <div>${props.description}</div>
+          </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }
+  
+  // Add associations section (only for contacts)
+  if (type === 'contact') {
+    const companiesCount = associations.companies?.length || 0;
+    const dealsCount = associations.deals?.length || 0;
+    
+    html += `
+      <div class="preview-section">
+        <h3>
+          <i class="fas fa-link"></i> Associations
+          <span style="font-size: 14px; font-weight: normal; color: var(--text-secondary); margin-left: 8px;">
+            (${companiesCount} companies, ${dealsCount} deals)
+          </span>
+        </h3>
+        <div class="associations-container">
+          <div class="association-group">
+            <h4><i class="fas fa-building"></i> Companies (${companiesCount})</h4>
+            <div class="association-list" id="companiesList">
+              ${companiesCount > 0 ? associations.companies.map(company => `
+                <div class="association-item">
+                  <div class="association-info">
+                    <div class="association-name">${escapeHtml(company.name)}</div>
+                    ${company.domain ? `<div class="association-meta">${escapeHtml(company.domain)}</div>` : ''}
+                    <div class="association-id">ID: ${company.id}</div>
+                  </div>
+                  <button class="btn-remove-association" data-type="company" data-id="${company.id}" data-contact-id="${id}" title="Remove Association">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              `).join('') : '<p style="color: var(--text-secondary); font-size: 14px; padding: 12px;">No companies associated</p>'}
+            </div>
+            <button class="btn-add-association" data-type="company" data-contact-id="${id}" style="margin-top: 12px;">
+              <i class="fas fa-plus"></i> Add Company
+            </button>
+          </div>
+          <div class="association-group">
+            <h4><i class="fas fa-handshake"></i> Deals (${dealsCount})</h4>
+            <div class="association-list" id="dealsList">
+              ${dealsCount > 0 ? associations.deals.map(deal => {
+                const amount = deal.amount ? parseFloat(deal.amount) : 0;
+                const formattedAmount = amount > 0 ? `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '';
+                return `
+                <div class="association-item">
+                  <div class="association-info">
+                    <div class="association-name">${escapeHtml(deal.name)}</div>
+                    <div class="association-meta">
+                      ${formattedAmount ? `<span style="color: var(--success-color); font-weight: 600;">${formattedAmount}</span>` : ''}
+                      ${deal.stage ? `<span style="background: #e0f2fe; color: var(--companies-color); padding: 2px 8px; border-radius: 8px; font-size: 12px; margin-left: 8px;">${escapeHtml(deal.stage)}</span>` : ''}
+                    </div>
+                    <div class="association-id">ID: ${deal.id}</div>
+                  </div>
+                  <button class="btn-remove-association" data-type="deal" data-id="${deal.id}" data-contact-id="${id}" title="Remove Association">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              `;
+              }).join('') : '<p style="color: var(--text-secondary); font-size: 14px; padding: 12px;">No deals associated</p>'}
+            </div>
+            <button class="btn-add-association" data-type="deal" data-contact-id="${id}" style="margin-top: 12px;">
+              <i class="fas fa-plus"></i> Add Deal
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Add metadata section
+  const createdDate = data.createdAt ? new Date(data.createdAt).toLocaleString() : (props.createdate ? new Date(props.createdate).toLocaleString() : '-');
+  const modifiedDate = data.updatedAt ? new Date(data.updatedAt).toLocaleString() : (props.lastmodifieddate ? new Date(props.lastmodifieddate).toLocaleString() : '-');
+  
+  html += `
+    <div class="preview-section">
+      <h3><i class="fas fa-info-circle"></i> Metadata</h3>
+      <div class="preview-grid">
+        <div class="preview-item">
+          <label>Record ID</label>
+          <div><code>${id}</code></div>
+        </div>
+        <div class="preview-item">
+          <label>Created Date</label>
+          <div>${createdDate}</div>
+        </div>
+        <div class="preview-item">
+          <label>Last Modified</label>
+          <div>${modifiedDate}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  html += '</div>';
+  contentEl.innerHTML = html;
+  
+  // Add event listeners for association management
+  if (type === 'contact') {
+    setupAssociationHandlers(id);
+  }
+}
+
+// Setup association management handlers
+function setupAssociationHandlers(contactId) {
+  // Remove association buttons
+  document.querySelectorAll('.btn-remove-association').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const type = btn.getAttribute('data-type');
+      const associatedId = btn.getAttribute('data-id');
+      const contactId = btn.getAttribute('data-contact-id');
+      
+      if (!confirm(`Are you sure you want to remove this ${type} association?`)) {
+        return;
+      }
+      
+      try {
+        await fetch(`/api/contacts/${contactId}/associations/${type}/${associatedId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        updateStatus('Association removed successfully', 'success');
+        // Reload preview
+        openPreview('contact', contactId);
+      } catch (error) {
+        console.error('Error removing association:', error);
+        updateStatus('Failed to remove association', 'error');
+      }
+    });
+  });
+  
+  // Add association buttons
+  document.querySelectorAll('.btn-add-association').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const type = btn.getAttribute('data-type');
+      const contactId = btn.getAttribute('data-contact-id');
+      
+      await openAddAssociationModal(type, contactId);
+    });
+  });
+}
+
+// Open modal to add association with search
+async function openAddAssociationModal(type, contactId) {
+  // Get or create modal overlay
+  let overlay = document.getElementById('modalOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'modalOverlay';
+    overlay.className = 'modal-overlay';
+    document.body.appendChild(overlay);
+  }
+  
+  // Remove existing add association modal if it exists
+  const existingModal = document.getElementById('addAssociationModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  // Create modal for searching and selecting a company/deal
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.id = 'addAssociationModal';
+  modal.innerHTML = `
+    <div class="modal-header">
+      <h2><i class="fas fa-plus"></i> Add ${type === 'company' ? 'Company' : 'Deal'} Association</h2>
+      <button class="modal-close" data-modal="addAssociationModal">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="position: relative;">
+        <label for="associationSearch">Search ${type === 'company' ? 'Companies' : 'Deals'} *</label>
+        <input type="text" id="associationSearch" placeholder="Type to search ${type === 'company' ? 'companies' : 'deals'}..." autocomplete="off">
+        <div id="associationDropdown" class="search-dropdown" style="display: none;"></div>
+        <small style="color: var(--text-secondary); margin-top: 4px; display: block;">
+          Start typing to search for ${type === 'company' ? 'a company' : 'a deal'} to associate
+        </small>
+      </div>
+      <div id="selectedAssociation" style="display: none; margin-top: 16px; padding: 12px; background: var(--background); border-radius: 8px; border: 1px solid var(--border-color);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div id="selectedName" style="font-weight: 600; color: var(--text-primary);"></div>
+            <div id="selectedMeta" style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;"></div>
+          </div>
+          <button type="button" id="clearSelection" class="btn-remove-association" style="margin: 0;">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-cancel" data-modal="addAssociationModal">Cancel</button>
+        <button type="button" class="btn-submit" id="submitAssociation" disabled>
+          <i class="fas fa-check"></i> Add Association
+        </button>
+      </div>
+    </div>
+  `;
+  
+  overlay.appendChild(modal);
+  openModal('addAssociationModal');
+  
+  const searchInput = document.getElementById('associationSearch');
+  const dropdown = document.getElementById('associationDropdown');
+  const selectedDiv = document.getElementById('selectedAssociation');
+  const selectedName = document.getElementById('selectedName');
+  const selectedMeta = document.getElementById('selectedMeta');
+  const clearBtn = document.getElementById('clearSelection');
+  const submitBtn = document.getElementById('submitAssociation');
+  let selectedItem = null;
+  let searchTimeout = null;
+  
+  // Search functionality
+  searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    
+    clearTimeout(searchTimeout);
+    
+    if (query.length < 2) {
+      dropdown.style.display = 'none';
+      return;
+    }
+    
+    searchTimeout = setTimeout(async () => {
+      try {
+        const searchUrl = type === 'company' 
+          ? `/api/companies/search?q=${encodeURIComponent(query)}&limit=10`
+          : `/api/deals/search?q=${encodeURIComponent(query)}&limit=10`;
+        
+        console.log('Searching:', searchUrl);
+        const data = await fetchJSON(searchUrl);
+        console.log('Search results:', data);
+        const results = data.results || [];
+        
+        if (results.length === 0) {
+          dropdown.innerHTML = '<div class="dropdown-item" style="padding: 12px; color: var(--text-secondary);">No results found</div>';
+          dropdown.style.display = 'block';
+          return;
+        }
+        
+        dropdown.innerHTML = results.map(item => {
+          const props = item.properties || {};
+          if (type === 'company') {
+            const name = props.name || `Company ${item.id}`;
+            const domain = props.domain || '';
+            return `
+              <div class="dropdown-item association-option" data-id="${item.id}" data-name="${escapeHtml(name)}" data-meta="${escapeHtml(domain)}">
+                <div style="font-weight: 600;">${escapeHtml(name)}</div>
+                ${domain ? `<div style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(domain)}</div>` : ''}
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">ID: ${item.id}</div>
+              </div>
+            `;
+          } else {
+            const name = props.dealname || `Deal ${item.id}`;
+            const amount = props.amount ? parseFloat(props.amount) : 0;
+            const formattedAmount = amount > 0 ? `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '';
+            return `
+              <div class="dropdown-item association-option" data-id="${item.id}" data-name="${escapeHtml(name)}" data-meta="${escapeHtml(formattedAmount || props.dealstage || '')}">
+                <div style="font-weight: 600;">${escapeHtml(name)}</div>
+                ${formattedAmount ? `<div style="font-size: 12px; color: var(--success-color); font-weight: 600;">${escapeHtml(formattedAmount)}</div>` : ''}
+                ${props.dealstage ? `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${escapeHtml(props.dealstage)}</div>` : ''}
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">ID: ${item.id}</div>
+              </div>
+            `;
+          }
+        }).join('');
+        
+        dropdown.style.display = 'block';
+        
+        // Add click handlers
+        dropdown.querySelectorAll('.association-option').forEach(option => {
+          option.addEventListener('click', () => {
+            selectedItem = {
+              id: option.getAttribute('data-id'),
+              name: option.getAttribute('data-name'),
+              meta: option.getAttribute('data-meta')
+            };
+            
+            selectedName.textContent = selectedItem.name;
+            selectedMeta.textContent = selectedItem.meta || `ID: ${selectedItem.id}`;
+            selectedDiv.style.display = 'block';
+            searchInput.value = '';
+            dropdown.style.display = 'none';
+            submitBtn.disabled = false;
+          });
+        });
+      } catch (error) {
+        console.error('Error searching:', error);
+        dropdown.innerHTML = `<div class="dropdown-item" style="padding: 12px; color: var(--error-color);">Error searching: ${error.message || 'Please try again'}</div>`;
+        dropdown.style.display = 'block';
+      }
+    }, 300);
+  });
+  
+  // Clear selection
+  clearBtn.addEventListener('click', () => {
+    selectedItem = null;
+    selectedDiv.style.display = 'none';
+    submitBtn.disabled = true;
+    searchInput.value = '';
+    searchInput.focus();
+  });
+  
+  // Handle submit
+  submitBtn.addEventListener('click', async () => {
+    if (!selectedItem) {
+      alert('Please select an item');
+      return;
+    }
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+    
+    try {
+      const response = await fetch(`/api/contacts/${contactId}/associations/${type}/${selectedItem.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to add association');
+      }
+      
+      updateStatus('Association added successfully', 'success');
+      closeModal('addAssociationModal');
+      modal.remove();
+      
+      // Reload preview
+      openPreview('contact', contactId);
+    } catch (error) {
+      console.error('Error adding association:', error);
+      alert(`Failed to add association: ${error.message}`);
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-check"></i> Add Association';
+    }
+  });
+  
+  // Handle modal close
+  modal.querySelectorAll('.modal-close, .btn-cancel').forEach(btn => {
+    btn.addEventListener('click', () => {
+      closeModal('addAssociationModal');
+      modal.remove();
+    });
+  });
+  
+  // Close dropdown when clicking outside
+  const closeDropdownHandler = (e) => {
+    if (!modal.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  };
+  document.addEventListener('click', closeDropdownHandler);
+  
+  // Clean up event listener when modal closes
+  modal.addEventListener('remove', () => {
+    document.removeEventListener('click', closeDropdownHandler);
+  });
+  
+  // Focus search input
+  setTimeout(() => searchInput.focus(), 100);
+}
+

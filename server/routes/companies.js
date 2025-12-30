@@ -1,203 +1,143 @@
 const express = require('express');
 const axios = require('axios');
-const { HUBSPOT_API_BASE } = require('../config/constants');
-const { getAccessToken } = require('../utils/tokens');
+const { HUBSPOT_API_BASE, COMPANY_TYPE_ID } = require('../config/constants');
+const { checkAuth, getAxiosConfig, handleError, parseLimit } = require('../utils/routeHelpers');
 
 const router = express.Router();
 
+router.use(checkAuth);
+
 /**
- * GET /api/companies
- * Fetch companies from HubSpot CRM
+ * GET /api/companies - Fetch companies
  */
 router.get('/', async (req, res) => {
-  const accessToken = getAccessToken();
-  
-  if (!accessToken) {
-    return res.status(401).json({ 
-      error: 'Not authorized. Please connect your HubSpot account.' 
-    });
-  }
-
   try {
     const { after, limit = 20 } = req.query;
-    
     const params = {
-      limit: Math.min(parseInt(limit) || 20, 100), // Max 100 per page
+      limit: parseLimit(limit),
       properties: 'name,domain,phone,website,industry,city,state,country,zip',
+      ...(after && { after })
     };
 
-    // Add cursor for next page
-    if (after) {
-      params.after = after;
-    }
+    const { data } = await axios.get(
+      `${HUBSPOT_API_BASE}/crm/v3/objects/companies`,
+      { params, ...getAxiosConfig(req.accessToken) }
+    );
 
-    const response = await axios.get(`${HUBSPOT_API_BASE}/crm/v3/objects/companies`, {
-      params,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    const { results, paging } = response.data;
-    
     res.json({
-      results,
+      results: data.results,
       paging: {
-        next: paging?.next?.after || null, // Cursor for next page
-        prev: paging?.prev?.before || null, // Cursor for previous page
+        next: data.paging?.next?.after || null,
+        prev: data.paging?.prev?.before || null,
       },
-      hasMore: !!paging?.next?.after
+      hasMore: !!data.paging?.next?.after
     });
   } catch (e) {
-    console.error('Error fetching companies:', e.response?.data || e.message);
-    res.status(500).json({ 
-      error: 'Failed to fetch companies', 
-      details: e.response?.data || e.message 
-    });
+    handleError(res, e, 'fetch companies');
   }
 });
 
 /**
- * GET /api/companies/search
- * Search companies by name (for association dropdown)
+ * GET /api/companies/count - Get total count
+ */
+router.get('/count', async (req, res) => {
+  try {
+    const { data } = await axios.get(
+      `${HUBSPOT_API_BASE}/crm/v3/limits/records`,
+      getAxiosConfig(req.accessToken)
+    );
+
+    const entry = data?.hubspotDefinedObjectTypes?.find(i => i.objectTypeId === COMPANY_TYPE_ID);
+    res.json({ total: entry?.usage ?? 0 });
+  } catch (e) {
+    handleError(res, e, 'fetch companies count');
+  }
+});
+
+/**
+ * GET /api/companies/search - Search companies (must be before /:id route)
  */
 router.get('/search', async (req, res) => {
-  const accessToken = getAccessToken();
-  
-  if (!accessToken) {
-    return res.status(401).json({ 
-      error: 'Not authorized. Please connect your HubSpot account.' 
-    });
-  }
-
   try {
     const { q, limit = 50 } = req.query;
-    
-    const params = {
-      limit: Math.min(parseInt(limit) || 50, 100),
-      properties: 'name,domain',
-    };
+    const parsedLimit = parseLimit(limit, 50);
+    const properties = ['name', 'domain'];
 
-    // If search query provided, use search API
-    if (q && q.trim()) {
-      const searchResponse = await axios.post(
+    if (q?.trim()) {
+      const { data } = await axios.post(
         `${HUBSPOT_API_BASE}/crm/v3/objects/companies/search`,
         {
-          filterGroups: [{
-            filters: [{
-              propertyName: 'name',
-              operator: 'CONTAINS_TOKEN',
-              value: q.trim()
-            }]
-          }],
-          limit: Math.min(parseInt(limit) || 50, 100),
-          properties: ['name', 'domain']
+          filterGroups: [{ filters: [{ propertyName: 'name', operator: 'CONTAINS_TOKEN', value: q.trim() }] }],
+          limit: parsedLimit,
+          properties
         },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        }
+        getAxiosConfig(req.accessToken, true)
       );
-      
-      return res.json({
-        results: searchResponse.data.results || [],
-        hasMore: !!searchResponse.data.paging?.next?.after
-      });
+      return res.json({ results: data.results || [], hasMore: !!data.paging?.next?.after });
     }
 
-    // Otherwise return regular list
-    const response = await axios.get(`${HUBSPOT_API_BASE}/crm/v3/objects/companies`, {
-      params,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-    
-    res.json({
-      results: response.data.results || [],
-      hasMore: !!response.data.paging?.next?.after
-    });
+    const { data } = await axios.get(
+      `${HUBSPOT_API_BASE}/crm/v3/objects/companies`,
+      { params: { limit: parsedLimit, properties: properties.join(',') }, ...getAxiosConfig(req.accessToken) }
+    );
+    res.json({ results: data.results || [], hasMore: !!data.paging?.next?.after });
   } catch (e) {
-    console.error('Error searching companies:', e.response?.data || e.message);
-    res.status(500).json({ 
-      error: 'Failed to search companies', 
-      details: e.response?.data || e.message 
-    });
+    handleError(res, e, 'search companies');
   }
 });
 
 /**
- * POST /api/companies
- * Create a new company in HubSpot CRM
+ * GET /api/companies/:id - Get company details
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const { data } = await axios.get(
+      `${HUBSPOT_API_BASE}/crm/v3/objects/companies/${req.params.id}`,
+      {
+        params: {
+          properties: 'name,domain,phone,website,industry,city,state,country,zip,description,numberofemployees,annualrevenue,createdate,lastmodifieddate'
+        },
+        headers: {
+          Authorization: `Bearer ${req.accessToken}`,
+        }
+      }
+    );
+    res.json(data);
+  } catch (e) {
+    handleError(res, e, 'fetch company details');
+  }
+});
+
+/**
+ * POST /api/companies - Create company
  */
 router.post('/', async (req, res) => {
-  const accessToken = getAccessToken();
-  
-  if (!accessToken) {
-    return res.status(401).json({ 
-      error: 'Not authorized. Please connect your HubSpot account.' 
-    });
-  }
-
   try {
-    const response = await axios.post(
+    const { data } = await axios.post(
       `${HUBSPOT_API_BASE}/crm/v3/objects/companies`,
       req.body,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
+      getAxiosConfig(req.accessToken, true)
     );
-    
-    res.status(201).json(response.data);
+    res.status(201).json(data);
   } catch (e) {
-    console.error('Error creating company:', e.response?.data || e.message);
-    res.status(500).json({ 
-      error: 'Failed to create company', 
-      details: e.response?.data || e.message 
-    });
+    handleError(res, e, 'create company');
   }
 });
 
 /**
- * PUT /api/companies/:id
- * Update a company in HubSpot CRM
+ * PUT /api/companies/:id - Update company
  */
 router.put('/:id', async (req, res) => {
-  const accessToken = getAccessToken();
-  
-  if (!accessToken) {
-    return res.status(401).json({ 
-      error: 'Not authorized. Please connect your HubSpot account.' 
-    });
-  }
-
   try {
-    const companyId = req.params.id;
-    const response = await axios.patch(
-      `${HUBSPOT_API_BASE}/crm/v3/objects/companies/${companyId}`,
+    const { data } = await axios.patch(
+      `${HUBSPOT_API_BASE}/crm/v3/objects/companies/${req.params.id}`,
       req.body,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      }
+      getAxiosConfig(req.accessToken, true)
     );
-    
-    res.json(response.data);
+    res.json(data);
   } catch (e) {
-    console.error('Error updating company:', e.response?.data || e.message);
-    res.status(500).json({ 
-      error: 'Failed to update company', 
-      details: e.response?.data || e.message 
-    });
+    handleError(res, e, 'update company');
   }
 });
 
 module.exports = router;
-
