@@ -166,8 +166,12 @@ router.get('/oauth-callback', async (req, res) => {
     const expiresAt = Date.now() + (expires_in * 1000);
     setTokens('demo', access_token, refresh_token, expiresAt);
 
-    // Redirect to dashboard after successful login
-    res.redirect('/');
+    // Redirect to frontend (Vercel) dashboard after successful login
+    const frontendUrl = process.env.FRONTEND_URL?.trim();
+    const redirectAfterLogin = frontendUrl
+      ? `${frontendUrl.replace(/\/$/, '')}/`
+      : '/';
+    res.redirect(redirectAfterLogin);
   } catch (e) {
     console.error('OAuth error:', e.response?.data || e.message);
     res.status(500).send('OAuth error: Failed to exchange code for token');
