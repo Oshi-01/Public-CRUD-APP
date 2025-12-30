@@ -512,7 +512,11 @@ const logoutBtn = document.getElementById('logoutBtn');
 if (logoutBtn) {
   logoutBtn.addEventListener('click', () => {
     if (confirm('Are you sure you want to logout?')) {
-      window.location.href = '/logout';
+      // Use API base URL so this works both locally and in production (Vercel + Render)
+      const logoutUrl = (window.API_CONFIG && window.API_CONFIG.getApiUrl)
+        ? window.API_CONFIG.getApiUrl('/logout')
+        : '/logout';
+      window.location.href = logoutUrl;
     }
   });
 }

@@ -175,6 +175,13 @@ router.get('/oauth-callback', async (req, res) => {
 });
 
 router.get('/logout', async (req, res) => {
+  // Determine where to send the user after logout
+  const frontendUrl = process.env.FRONTEND_URL?.trim();
+  const loginPath = '/login.html';
+  const redirectUrl = frontendUrl
+    ? `${frontendUrl.replace(/\/$/, '')}${loginPath}`
+    : loginPath;
+
   try {
     const refreshToken = getRefreshToken('demo'); // Get stored refresh token
     
@@ -193,14 +200,14 @@ router.get('/logout', async (req, res) => {
     // Clear local tokens
     clearTokens('demo');
     
-    // Redirect to login page after logout
-    res.redirect('/login.html');
+    // Redirect to frontend login page after logout
+    res.redirect(redirectUrl);
   } catch (e) {
     console.error('Logout error:', e.response?.data || e.message);
     // Clear local tokens even if HubSpot deletion fails
     clearTokens('demo');
-    // Redirect to login page after logout
-    res.redirect('/login.html');
+    // Redirect to frontend login page after logout
+    res.redirect(redirectUrl);
   }
 });
 
